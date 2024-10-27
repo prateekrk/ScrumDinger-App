@@ -7,49 +7,61 @@
 
 import SwiftUI
 import CoreData
+import AVFoundation
 
 struct MeetingView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
-
+    @Binding var scrum: DailyScrum
+    @StateObject var scrumTimer: ScrumTimer = ScrumTimer()
+    @StateObject var speechRecognizer = SpeechRecognizer()
+    @State var isRecording = false
+    var history: History?
+    private var avPlayer: AVPlayer {
+        AVPlayer.sharedDingPlayer
+    }
     var body: some View {
-        VStack {
-            Image(systemName: "globe").imageScale(.large).foregroundColor(.accentColor)
-            ProgressView(value: 50, total: 100)
-            HStack() {
-                VStack(alignment: .leading) {
-                    Text("Seconds Elapsed")
-                        .font(.caption)
-                    Label("300", systemImage: "hourglass.tophalf.fill")
-                }
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text("Seconds Reamining")
-                        .font(.caption)
-                    Label("600", systemImage: "hourglass.bottomhalf.fill")
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Time Reamining")
-            .accessibilityValue("10 Minutes")
-            Circle().strokeBorder(lineWidth: 24)
-            HStack {
-                Text("Speaker 1 of 3")
-                Spacer()
-                Button(action: {}) {
-                    Image(systemName: "forward.fill")
-                }
-                .accessibilityLabel("Next Speaker")
-            }
+        ZStack {
+            RoundedRectangle(cornerRadius: 16.0).fill(scrum.theme.mainColor)
+            VStack {
+                MeetingViewHeader(secondsElapsed: scrumTimer.secondsElapsed, secondsRemaining: scrumTimer.secondsRemaining, theme: scrum.theme)
+                MeetingTimerView(speakers: scrumTimer.speakers, theme: scrum.theme, isRecording: isRecording)
+                MeetingFooterView(speakers: scrumTimer.speakers, skipAction: scrumTimer.skipSpeaker)
+            }.padding()
         }
+        .onAppear(perform: {
+            
+        })
         .padding()
+        .foregroundColor(scrum.theme.accentColor)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: {
+            startScrum()
+        })
+        .onDisappear(perform: {
+            endScrum()
+        })
+    }
+
+    private func startScrum() {
+        scrumTimer.reset(lengthInMinutes: scrum.lengthInMinutes, attendees: scrum.attendees)
+        scrumTimer.speakerChangedAction = {
+            avPlayer.seek(to: .zero)
+            avPlayer.play()
+        }
+        isRecording = true
+        speechRecognizer.resetTranscript()
+        speechRecognizer.startTranscribing()
+        scrumTimer.startScrum()
+    }
+
+    private func endScrum() {
+        speechRecognizer.stopTranscribing()
+        scrumTimer.stopScrum()
+        isRecording = false
+        let newHistory = History(date: .now, attendees: scrum.attendees, transcripts: speechRecognizer.transcript)
+        scrum.history.insert(newHistory, at: 0)
     }
 }
 
 #Preview {
-    MeetingView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    MeetingView(scrum: .constant(DailyScrum.sampleData[0]))
 }

@@ -6,13 +6,24 @@
 //
 
 import Foundation
-struct DailyScrum: Identifiable {
+struct DailyScrum: Identifiable, Codable {
     let id: UUID
     var title: String
     var attendees: [Attendee]
     var lengthInMinutes: Int
     var theme: Theme
+    var lengthInMinutesAsDouble: Double {
+        get {
+            Double(lengthInMinutes)
+        }
 
+        set {
+            lengthInMinutes = Int(newValue)
+        }
+    }
+
+    var history: [History] = []
+    
     init(id: UUID = UUID(), title: String, attendees: [String], lengthInMinutes: Int, theme: Theme) {
         self.id = id
         self.title = title
@@ -22,7 +33,7 @@ struct DailyScrum: Identifiable {
     }
 }
 extension DailyScrum {
-    static let sampleData: [DailyScrum] = [
+    static var sampleData: [DailyScrum] = [
         DailyScrum(title: "Design",
                    attendees: ["Cathy", "Daisy", "Simon", "Jonathan"],
                    lengthInMinutes: 10,
@@ -36,4 +47,8 @@ extension DailyScrum {
                    lengthInMinutes: 5,
                    theme: .poppy)
     ]
+
+    static let emptyScrum: DailyScrum = {
+        DailyScrum(title: "", attendees: [String](), lengthInMinutes: 0, theme: .purple)
+    }()
 }

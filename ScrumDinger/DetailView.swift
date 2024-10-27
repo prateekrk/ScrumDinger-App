@@ -8,11 +8,16 @@
 import SwiftUI
 
 struct DetailView: View {
-    let scrum: DailyScrum
+    @Binding var scrum: DailyScrum
+    @State private var isPresentingEditView = false
     var body: some View {
         List {
             Section(header: Text("Meeting Info")) {
-                Label("Start meeting", systemImage: "timer")
+                NavigationLink {
+                    MeetingView(scrum: $scrum)
+                } label: {
+                    Label("Start meeting", systemImage: "timer").font(.headline).foregroundColor(.accentColor)
+                }
                 HStack {
                     Label("Length", systemImage: "clock")
                     Spacer()
@@ -35,11 +40,52 @@ struct DetailView: View {
                     Label(attendee.name, systemImage: "person")
                 }
             }
+            Section( header: Text("History")) {
+                if scrum.history.isEmpty {
+                    Label("No Meetings Yet", systemImage: "calendar")
+                } else {
+                    ForEach(scrum.history) { history in
+                        HStack {
+                            NavigationLink {
+                               HistoryView(history: history)
+                            } label: {
+                                Image("calendar")
+                                Text(history.date, style: .date)
+                            }
+                        }
+                    }
+                }
+            }
         }
+        .toolbar(content: {
+            Button(action: {
+                isPresentingEditView = true
+            }) {
+                Text("Edit")
+            }
+        })
+        .sheet(isPresented: $isPresentingEditView, content: {
+            NavigationStack {
+                DetailEditView(scrum: $scrum)
+                    .navigationTitle(scrum.title)
+                    .toolbar(content: {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                isPresentingEditView = false
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                isPresentingEditView = false
+                            }
+                        }
+                    })
+            }
+        })
         .navigationTitle(scrum.title)
     }
 }
 
 #Preview {
-    DetailView(scrum: DailyScrum.sampleData[0])
+    DetailView(scrum: .constant(DailyScrum.sampleData[0]))
 }
